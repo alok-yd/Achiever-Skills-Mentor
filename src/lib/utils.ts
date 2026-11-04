@@ -2,8 +2,9 @@ import { months, phases } from "../data/roadmap";
 import type { AppData, RecordItem, RoadmapMonth } from "../types";
 
 export const todayKey = (date = new Date()) => {
-  const parts = new Intl.DateTimeFormat("en-CA", {timeZone:"Asia/Kolkata", year:"numeric",month:"2-digit",day:"2-digit"}).format(date);
-  return parts;
+  const parts = new Intl.DateTimeFormat("en-CA", {timeZone:"Asia/Kolkata", year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(date);
+  const value = (type:string) => parts.find(part => part.type === type)?.value ?? "";
+  return `${value("year")}-${value("month")}-${value("day")}`;
 };
 export const monthKey = (date = new Date()) => todayKey(date).slice(0,7);
 export const formatDate = (date: string) => date ? new Date(date + (date.length === 10 ? "T12:00:00" : "")).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}) : "—";
@@ -39,7 +40,7 @@ export function roadmapStats(data: AppData) {
   const now = new Date();
   const daysTotal = Math.max(1,Math.ceil((end.getTime()-start.getTime())/86400000));
   const elapsed = Math.max(0,Math.min(daysTotal,Math.floor((now.getTime()-start.getTime())/86400000)));
-  const remaining = Math.max(0,Math.ceil((end.getTime()-now.getTime())/86400000));
+  const remaining = now < start ? Math.max(0,Math.ceil((start.getTime()-now.getTime())/86400000)) : Math.max(0,Math.ceil((end.getTime()-now.getTime())/86400000));
   const phaseTasks = active ? data.tasks.filter(t => t.phase === active.phase || t.month === active.key) : [];
   const phaseDone = phaseTasks.filter(t => t.status === "Completed").length;
   return {completed,total,taskProgress,sessionsHours,active,phase, due,overdue,weeklyHours,weekTarget,elapsed,remaining,daysTotal,phaseProgress:phaseTasks.length?Math.round(phaseDone/phaseTasks.length*100):0};
