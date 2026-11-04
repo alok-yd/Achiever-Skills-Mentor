@@ -237,7 +237,7 @@ function ProgressBar({value,color="blue"}:{value:number;color?:string}) { return
 function EmptyState({title,body,action}:{title:string;body:string;action?:ReactNode}) {
   return <div className="empty-state"><div className="empty-icon"><Sparkles size={20}/></div><b>{title}</b><p>{body}</p>{action}</div>;
 }
-function Dashboard({data,stats,runningMs,onNavigate,onStart,onPause,onStop,onAdd,onQuick,onStatus,onEdit}:{data:AppData;stats:ReturnType<typeof roadmapStats>;weeklyAvg:number;runningMs:number;onNavigate:(m:ModuleKey)=>void;onStart:(taskId:string,subject:string,note:string)=>void;onPause:()=>void;onStop:()=>void;onAdd:()=>void;onQuick:(title:string,subject?:string)=>void;onStatus:(t:RecordItem,s:TaskStatus)=>void;onEdit:(id:string)=>void}) {
+function Dashboard({data,stats,weeklyAvg,runningMs,onNavigate,onStart,onPause,onStop,onAdd,onQuick,onStatus,onEdit}:{data:AppData;stats:ReturnType<typeof roadmapStats>;weeklyAvg:number;runningMs:number;onNavigate:(m:ModuleKey)=>void;onStart:(taskId:string,subject:string,note:string)=>void;onPause:()=>void;onStop:()=>void;onAdd:()=>void;onQuick:(title:string,subject?:string)=>void;onStatus:(t:RecordItem,s:TaskStatus)=>void;onEdit:(id:string)=>void}) {
   const [timerTask,setTimerTask]=useState(data.timer.taskId);const [subject,setSubject]=useState(data.timer.subject);const [note,setNote]=useState(data.timer.note);
   const [quickTitle,setQuickTitle]=useState("");
   const active=stats.active;const phase=stats.phase;const upcoming=months.find(m=>m.key>=monthKey())??months[months.length-1];
