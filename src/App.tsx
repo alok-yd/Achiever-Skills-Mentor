@@ -178,6 +178,12 @@ function App() {
     const overdue=data.tasks.filter(t=>String(t.dueDate??"")<todayKey()&&t.status!=="Completed");
     const blocked=data.tasks.filter(t=>t.status==="Blocked");
     const unreviewed=data.dsa.filter(t=>t.status==="Needs Revision");
+    const latestAssessment=[...data.assessments].sort((a,b)=>String(b.month??"").localeCompare(String(a.month??"")))[0];
+    const weakDimensions=latestAssessment?[["Conceptual mastery","conceptual"],["Practical implementation","practical"],["Math / theory","math"],["Projects / experiments","projectsScore"],["Consistency","consistency"]].filter(([,key])=>Number(latestAssessment[String(key)]??100)<50).map(([label,key])=>`${label}: ${Number(latestAssessment[String(key)]??0)}%`):[];
+    const stalledProjects=data.projects.filter(p=>p.status==="In Progress"&&Number(p.progress??0)<30);
+    const weakInterviews=data.interviews.filter(i=>["Needs Improvement","Average"].includes(String(i.performance)));
+    const lateWeek=new Date().getDay()>=5;
+    const lowWeeklyHours=data.sessions.length>0&&lateWeek&&stats.weeklyHours<stats.weekTarget*0.5;
     const noEvidence=data.tasks.length===0&&data.sessions.length===0;
     const lines:string[]=[];
     if(noEvidence) lines.push("I don’t have recorded study sessions or tasks yet, so I can’t estimate your current consistency or skill level. Start by adding today’s plan and recording a real study session.");
@@ -185,6 +191,10 @@ function App() {
     if(overdue.length)lines.push(`There are ${overdue.length} overdue task(s): ${overdue.slice(0,3).map(t=>String(t.title)).join(", ")}. Review the due dates before adding more work.`);
     if(blocked.length)lines.push(`${blocked.length} task(s) are marked Blocked. Resolve the blocker or split the task into a smaller action.`);
     if(unreviewed.length)lines.push(`${unreviewed.length} DSA problem(s) need revision. A short spaced-revision session may be more valuable than adding new problems.`);
+    if(weakDimensions.length)lines.push(`Your latest monthly assessment records low scores (<50%) in: ${weakDimensions.join("; ")}. Revisit the written evidence and create a focused improvement task.`);
+    if(stalledProjects.length)lines.push(`${stalledProjects.length} project(s) are marked In Progress with less than 30% progress. Check whether the scope is too broad or the next milestone is unclear.`);
+    if(weakInterviews.length)lines.push(`${weakInterviews.length} interview record(s) are marked Average or Needs Improvement. Review the topics and follow-up actions you saved before your next mock.`);
+    if(lowWeeklyHours)lines.push(`Recorded study time this week is ${stats.weeklyHours.toFixed(1)}h against a ${stats.weekTarget.toFixed(1)}h weekly target. This is a tracker-based consistency signal, not a judgement of effort.`);
     if(data.settings.startDate>todayKey())lines.push(`Your roadmap begins on ${formatDate(data.settings.startDate)}. Use the time before launch to set up a realistic environment and baseline rather than marking future milestones complete.`);
     if(q.includes("next")||q.includes("plan")||q.includes("today"))lines.push("Suggested next action: choose one high-priority task, define a finish condition, and reserve a focused block. Keep the plan within your configured daily target.");
     if(q.includes("weak")||q.includes("improve")||q.includes("review"))lines.push("Evidence-based check: compare monthly assessment dimensions, DSA revision backlog, unfinished project milestones and actual study hours. Missing records are unknowns, not proof of weakness.");
