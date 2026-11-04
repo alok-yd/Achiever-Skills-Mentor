@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode, Dispatch, SetStateAction } from "react";
 import {
   Activity, ArrowDownRight, ArrowUpRight, Bell, BookOpen, Bot, Brain, BriefcaseBusiness,
   CalendarDays, Check, CheckCircle2, ChevronDown, ChevronRight, CircleHelp, Clock3, Code2,
@@ -14,7 +15,7 @@ import { activeMonth, averageHoursPerLearningDay, currentPhase, durationLabel, f
 
 type CollectionKey = "tasks" | "courses" | "papers" | "projects" | "github" | "dsa" | "interviews" | "assessments";
 type Field = { key:string; label:string; type?:"text"|"textarea"|"url"|"date"|"number"|"select"; options?:string[]; placeholder?:string };
-type Editor = { collection:CollectionKey; item?:RecordItem };
+type Editor = { collection:CollectionKey; item?:RecordItem; defaults?:Record<string,string> };
 type ChatMessage = { role:"assistant"|"user"; text:string };
 const nav: { key:ModuleKey; label:string; icon:typeof LayoutDashboard; group:string }[] = [
   {key:"dashboard",label:"Overview",icon:LayoutDashboard,group:"WORKSPACE"},
@@ -41,7 +42,7 @@ const fields:Record<CollectionKey,Field[]> = {
     {key:"subject",label:"Subject",type:"select",options:subjectOptions()},
     {key:"topic",label:"Topic"},
     {key:"description",label:"Description",type:"textarea"},
-    {key:"phase",label:"Roadmap phase",type:"select",options:phases.map(p=>String(p.id)+ " · "+p.title)},
+    {key:"phase",label:"Roadmap phase",type:"select",options:phases.map(p=>String(p.id))},
     {key:"month",label:"Roadmap month",type:"select",options:months.map(m=>m.key+" · "+m.title)},
     {key:"priority",label:"Priority",type:"select",options:["Low","Medium","High"]},
     {key:"dueDate",label:"Due date",type:"date"},
@@ -147,15 +148,15 @@ function App() {
     if(!editor)return;
     const key=editor.collection;
     const cleaned={...values};
-    ["estimatedHours","actualHours","progress","totalLectures","completedLectures","rating","year","timeMinutes","conceptual","practical","math","projectsScore","consistency","completion"].forEach(k=>{if(cleaned[k]!==undefined&&cleaned[k]!=="" )cleaned[k]=Number(cleaned[k])});
+    ["estimatedHours","actualHours","progress","totalLectures","completedLectures","rating","year","timeMinutes","conceptual","practical","math","projectsScore","consistency","completion","phase"].forEach(k=>{if(cleaned[k]!==undefined&&cleaned[k]!=="" )cleaned[k]=Number(cleaned[k])});
     if(editor.item) updateRecord(key,editor.item.id,cleaned);
     else setData(prev=>({...prev,[key]:[makeRecord(cleaned),...(prev[key] as RecordItem[])]}));
     setEditor(null);setNotice(editor.item?"Changes saved.":"Record created.");
   }
   function toggleTaskStatus(task:RecordItem,status:TaskStatus) { updateRecord("tasks",task.id,{status,completedAt:status==="Completed"?new Date().toISOString():null}); }
-  function startTimer() {
+  function startTimer(taskId="",subject="",note="") {
     if(data.timer.running)return;
-    setData(prev=>({...prev,timer:{...prev.timer,running:true,startedAt:Date.now()}}));
+    setData(prev=>({...prev,timer:{...prev.timer,taskId,subject,note,running:true,startedAt:Date.now()}}));
   }
   function pauseTimer() {
     if(!data.timer.running||!data.timer.startedAt)return;
@@ -180,7 +181,7 @@ function App() {
     const noEvidence=data.tasks.length===0&&data.sessions.length===0;
     const lines:string[]=[];
     if(noEvidence) lines.push("I don’t have recorded study sessions or tasks yet, so I can’t estimate your current consistency or skill level. Start by adding today’s plan and recording a real study session.");
-    else lines.push(`Your tracker currently contains ${data.tasks.length} tasks (${data.tasks.filter(t=>t.status==="Completed").length} completed), ${data.sessionsHours?.toFixed?.(1)??stats.sessionsHours.toFixed(1)} recorded study hours, ${data.projects.length} projects and ${data.papers.length} saved papers.`);
+    else lines.push(`Your tracker currently contains ${data.tasks.length} tasks (${data.tasks.filter(t=>t.status==="Completed").length} completed), ${stats.sessionsHours.toFixed(1)} recorded study hours, ${data.projects.length} projects and ${data.papers.length} saved papers.`);
     if(overdue.length)lines.push(`There are ${overdue.length} overdue task(s): ${overdue.slice(0,3).map(t=>String(t.title)).join(", ")}. Review the due dates before adding more work.`);
     if(blocked.length)lines.push(`${blocked.length} task(s) are marked Blocked. Resolve the blocker or split the task into a smaller action.`);
     if(unreviewed.length)lines.push(`${unreviewed.length} DSA problem(s) need revision. A short spaced-revision session may be more valuable than adding new problems.`);
@@ -206,7 +207,7 @@ function App() {
       <header className="topbar"><div className="top-left"><button className="icon-btn menu-btn" onClick={()=>setMobileOpen(true)}><Menu size={20}/></button><div className="breadcrumb">Workspace <ChevronRight size={13}/><b>{currentNav?.label??"Overview"}</b></div></div><div className="top-actions"><div className="date-chip"><CalendarDays size={14}/>{todayLabel}</div><button className="icon-btn" title="Notifications"><Bell size={18}/></button><div className="top-avatar">A</div></div></header>
       <div className="page-wrap">
         {active==="dashboard"&&<Dashboard data={data} stats={stats} runningMs={runningMs} onNavigate={setActive} onStart={startTimer} onPause={pauseTimer} onStop={stopTimer} onAdd={()=>setEditor({collection:"tasks"})} onQuick={addQuickTask} onStatus={toggleTaskStatus} onEdit={id=>setEditor({collection:"tasks",item:data.tasks.find(t=>t.id===id)})}/>}
-        {active==="roadmap"&&<Roadmap data={data} onAddTask={m=>{setEditor({collection:"tasks"});setData(prev=>({...prev,tasks:prev.tasks}))}} onChooseTask={month=>{setEditor({collection:"tasks"});}}/>}
+        {active==="roadmap"&&<Roadmap data={data} onAddTask={m=>setEditor({collection:"tasks",defaults:{phase:String(m.phase),month:m.key,dueDate:m.key+"-01"}})} onChooseTask={()=>setActive("daily")}/>}
         {active==="weekly"&&<WeeklyPlanner data={data} onAdd={()=>setEditor({collection:"tasks"})} onStatus={toggleTaskStatus} onEdit={id=>setEditor({collection:"tasks",item:data.tasks.find(t=>t.id===id)})}/>}
         {active==="mentor"&&<Mentor messages={messages} input={mentorInput} setInput={setMentorInput} onSend={sendMentor} onAddTask={()=>setEditor({collection:"tasks"})} stats={stats}/>}
         {active==="analytics"&&<Analytics data={data} stats={stats} avg={weeklyAvg} onExport={()=>exportCsv(data.sessions,"study-sessions.csv")}/>}
@@ -223,7 +224,7 @@ function App() {
   </div>;
 }
 
-function PageHeading({eyebrow,title,subtitle,action}:{eyebrow:string;title:string;subtitle:string;action?:React.ReactNode}) {
+function PageHeading({eyebrow,title,subtitle,action}:{eyebrow:string;title:string;subtitle:string;action?:ReactNode}) {
   return <div className="page-heading"><div><div className="eyebrow">{eyebrow}</div><h1>{title}</h1><p>{subtitle}</p></div>{action&&<div className="heading-action">{action}</div>}</div>;
 }
 function Button({children,onClick,variant="primary",icon}:{children:React.ReactNode;onClick:()=>void;variant?:"primary"|"secondary"|"ghost"|"danger";icon?:React.ReactNode}) {
@@ -236,7 +237,7 @@ function ProgressBar({value,color="blue"}:{value:number;color?:string}) { return
 function EmptyState({title,body,action}:{title:string;body:string;action?:React.ReactNode}) {
   return <div className="empty-state"><div className="empty-icon"><Sparkles size={20}/></div><b>{title}</b><p>{body}</p>{action}</div>;
 }
-function Dashboard({data,stats,runningMs,onNavigate,onStart,onPause,onStop,onAdd,onQuick,onStatus,onEdit}:{data:AppData;stats:ReturnType<typeof roadmapStats>;runningMs:number;onNavigate:(m:ModuleKey)=>void;onStart:()=>void;onPause:()=>void;onStop:()=>void;onAdd:()=>void;onQuick:(title:string,subject?:string)=>void;onStatus:(t:RecordItem,s:TaskStatus)=>void;onEdit:(id:string)=>void}) {
+function Dashboard({data,stats,runningMs,onNavigate,onStart,onPause,onStop,onAdd,onQuick,onStatus,onEdit}:{data:AppData;stats:ReturnType<typeof roadmapStats>;runningMs:number;onNavigate:(m:ModuleKey)=>void;onStart:(taskId:string,subject:string,note:string)=>void;onPause:()=>void;onStop:()=>void;onAdd:()=>void;onQuick:(title:string,subject?:string)=>void;onStatus:(t:RecordItem,s:TaskStatus)=>void;onEdit:(id:string)=>void}) {
   const [timerTask,setTimerTask]=useState(data.timer.taskId);const [subject,setSubject]=useState(data.timer.subject);const [note,setNote]=useState(data.timer.note);
   const [quickTitle,setQuickTitle]=useState("");
   const active=stats.active;const phase=stats.phase;const upcoming=months.find(m=>m.key>=monthKey())??months[months.length-1];
@@ -266,7 +267,7 @@ function Dashboard({data,stats,runningMs,onNavigate,onStart,onPause,onStop,onAdd
       <section className="panel focus-panel"><div className="panel-head"><div><div className="eyebrow">FOCUS SESSION</div><h3>Study timer</h3></div><span className={`timer-state ${data.timer.running?"recording":""}`}>{data.timer.running?"● Recording":"Ready"}</span></div>
         <div className="timer-display">{durationLabel(runningMs)}</div><div className="timer-caption">{data.timer.running?"Keep your attention on the task.":"Every focused session counts. Start when you begin."}</div>
         <div className="timer-fields"><label>Link to task<select value={timerTask} onChange={e=>setTimerTask(e.target.value)}><option value="">No linked task</option>{data.tasks.filter(t=>t.status!=="Completed").map(t=><option key={t.id} value={t.id}>{String(t.title)}</option>)}</select></label><label>Subject<input value={subject} onChange={e=>setSubject(e.target.value)} placeholder="e.g. Deep Learning"/></label><label>Session note<input value={note} onChange={e=>setNote(e.target.value)} placeholder="What are you focusing on?"/></label></div>
-        <div className="timer-controls">{!data.timer.running?<Button onClick={()=>{onStart();}} icon={<Play size={15}/>}>Start focus</Button>:<Button onClick={onPause} variant="secondary" icon={<Pause size={15}/>}>Pause</Button>}<Button onClick={onStop} variant="ghost" icon={<Square size={14}/>}>Stop & save</Button></div>
+        <div className="timer-controls">{!data.timer.running?<Button onClick={()=>{onStart(timerTask,subject,note);}} icon={<Play size={15}/>}>Start focus</Button>:<Button onClick={onPause} variant="secondary" icon={<Pause size={15}/>}>Pause</Button>}<Button onClick={onStop} variant="ghost" icon={<Square size={14}/>}>Stop & save</Button></div>
         <div className="timer-hint"><ShieldCheck size={13}/> Timer runs independently of browser tab changes. No webcam access.</div>
       </section>
     </div>
@@ -394,7 +395,7 @@ function AssessmentsPage({rows,onAdd,onEdit,onDelete}:{rows:RecordItem[];onAdd:(
     <div className="callout"><Lightbulb size={17}/><div><b>Scoring method</b><span>Conceptual 25% · Practical 25% · Math / theory 15% · Projects / experiments 25% · Consistency 10%. These scores are self-assessments; write the evidence behind each score.</span></div></div>
   </>;
 }
-function SettingsPage({data,setData,onBackup,onImport,onExportTasks}:{data:AppData;setData:React.Dispatch<React.SetStateAction<AppData>>;onBackup:()=>void;onImport:()=>void;onExportTasks:()=>void}) {
+function SettingsPage({data,setData,onBackup,onImport,onExportTasks}:{data:AppData;setData:Dispatch<SetStateAction<AppData>>;onBackup:()=>void;onImport:()=>void;onExportTasks:()=>void}) {
   const [target,setTarget]=useState(String(data.settings.dailyTargetHours));
   return <><PageHeading eyebrow="PERSONALISE YOUR SYSTEM" title="Settings & data" subtitle="Set your weekly rhythm, roadmap dates and data safeguards."/>
     <div className="settings-grid"><section className="panel settings-panel"><div className="settings-title"><div className="metric-icon blue"><Target size={18}/></div><div><h3>Learning preferences</h3><p>Set a sustainable schedule and your tracking targets.</p></div></div><label className="settings-field">Daily focused-study target (hours)<div className="inline-input"><input type="number" min="0.5" max="16" step="0.5" value={target} onChange={e=>setTarget(e.target.value)}/><Button onClick={()=>setData(p=>({...p,settings:{...p.settings,dailyTargetHours:Math.min(16,Math.max(.5,Number(target)||7.5))}}))} variant="secondary">Save target</Button></div></label><div className="settings-field"><span>Learning days</span><div className="day-toggle">{["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((d,i)=>{const day=i+1;return <button key={d} className={data.settings.learningDays.includes(day)?"on":""} onClick={()=>setData(p=>({...p,settings:{...p.settings,learningDays:p.settings.learningDays.includes(day)?p.settings.learningDays.filter(x=>x!==day):[...p.settings.learningDays,day].sort()}}))}>{d}</button>})}</div><small>Default: Monday–Friday. Weekend days can be used as optional buffer or rest days.</small></div><div className="settings-field"><span>Roadmap dates</span><div className="two-inputs"><label>Start date<input type="date" value={data.settings.startDate} onChange={e=>setData(p=>({...p,settings:{...p.settings,startDate:e.target.value}}))}/></label><label>End date<input type="date" value={data.settings.endDate} onChange={e=>setData(p=>({...p,settings:{...p.settings,endDate:e.target.value}}))}/></label></div></div><div className="settings-readonly"><span>Timezone</span><b>Asia / Kolkata (IST)</b></div></section>
@@ -404,7 +405,7 @@ function SettingsPage({data,setData,onBackup,onImport,onExportTasks}:{data:AppDa
 }
 function RecordModal({editor,onClose,onSave}:{editor:Editor;onClose:()=>void;onSave:(v:Record<string,unknown>)=>void}) {
   const defs=fields[editor.collection];const initial:Record<string,string>={};
-  defs.forEach(f=>{initial[f.key]=String(editor.item?.[f.key]??(f.key==="dueDate"||f.key==="date"?todayKey():f.key==="status"?(editor.collection==="tasks"?"Not Started":editor.collection==="dsa"?"Not Attempted":editor.collection==="papers"?"To Read":"Not Started"):f.key==="priority"?"Medium": ""))});
+  defs.forEach(f=>{initial[f.key]=String(editor.item?.[f.key]??editor.defaults?.[f.key]??(f.key==="dueDate"||f.key==="date"?todayKey():f.key==="status"?(editor.collection==="tasks"?"Not Started":editor.collection==="dsa"?"Not Attempted":editor.collection==="papers"?"To Read":"Not Started"):f.key==="priority"?"Medium": ""))});
   const [values,setValues]=useState(initial);
   const title=editor.item?"Edit record":editor.collection==="tasks"?"Create learning task":editor.collection==="papers"?"Add research paper":editor.collection==="projects"?"Add project":editor.collection==="dsa"?"Log DSA problem":editor.collection==="courses"?"Add learning resource":editor.collection==="github"?"Add repository":editor.collection==="interviews"?"Log interview":"Create monthly assessment";
   return <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}><form className="record-modal" onSubmit={e=>{e.preventDefault();if(!String(values.title??values.repoName??values.company??"").trim()&&editor.collection!=="assessments")return;onSave(values)}}><div className="modal-head"><div><span className="eyebrow">TRACKER ENTRY</span><h2>{title}</h2></div><button type="button" className="icon-btn" onClick={onClose}><X size={19}/></button></div><div className="modal-fields">{defs.map(f=><label key={f.key} className={f.type==="textarea"?"field-wide":""}>{f.label}{f.type==="textarea"?<textarea rows={3} value={values[f.key]??""} onChange={e=>setValues(v=>({...v,[f.key]:e.target.value}))} placeholder={f.placeholder??f.label}/>:f.type==="select"?<select value={values[f.key]??""} onChange={e=>setValues(v=>({...v,[f.key]:e.target.value}))}><option value="">Select...</option>{(f.options??[]).map(o=><option key={o} value={o.includes(" · ")?o.split(" · ")[0]:o}>{o}</option>)}</select>:<input type={f.type??"text"} min={f.type==="number"?0:undefined} value={values[f.key]??""} onChange={e=>setValues(v=>({...v,[f.key]:e.target.value}))} placeholder={f.placeholder??f.label}/>}</label>)}</div><div className="modal-foot"><Button onClick={onClose} variant="ghost">Cancel</Button><button type="submit" className="btn btn-primary"><Check size={15}/>{editor.item?"Save changes":"Save record"}</button></div></form></div>;
