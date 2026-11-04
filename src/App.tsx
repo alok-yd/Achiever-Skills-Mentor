@@ -227,14 +227,14 @@ function App() {
 function PageHeading({eyebrow,title,subtitle,action}:{eyebrow:string;title:string;subtitle:string;action?:ReactNode}) {
   return <div className="page-heading"><div><div className="eyebrow">{eyebrow}</div><h1>{title}</h1><p>{subtitle}</p></div>{action&&<div className="heading-action">{action}</div>}</div>;
 }
-function Button({children,onClick,variant="primary",icon}:{children:React.ReactNode;onClick:()=>void;variant?:"primary"|"secondary"|"ghost"|"danger";icon?:React.ReactNode}) {
+function Button({children,onClick,variant="primary",icon}:{children:ReactNode;onClick:()=>void;variant?:"primary"|"secondary"|"ghost"|"danger";icon?:ReactNode}) {
   return <button className={`btn btn-${variant}`} onClick={onClick}>{icon}{children}</button>;
 }
 function MetricCard({label,value,meta,icon:Icon,accent="blue",trend}:{label:string;value:string|number;meta:string;icon:typeof Activity;accent?:string;trend?:string}) {
   return <div className="metric-card"><div className="metric-top"><span>{label}</span><div className={`metric-icon ${accent}`}><Icon size={18}/></div></div><div className="metric-value">{value}</div><div className="metric-meta">{meta}{trend&&<span className="metric-trend"><ArrowUpRight size={13}/>{trend}</span>}</div></div>;
 }
 function ProgressBar({value,color="blue"}:{value:number;color?:string}) { return <div className="progress-track"><div className={`progress-fill ${color}`} style={{width:`${Math.max(0,Math.min(100,value))}%`}}/></div> }
-function EmptyState({title,body,action}:{title:string;body:string;action?:React.ReactNode}) {
+function EmptyState({title,body,action}:{title:string;body:string;action?:ReactNode}) {
   return <div className="empty-state"><div className="empty-icon"><Sparkles size={20}/></div><b>{title}</b><p>{body}</p>{action}</div>;
 }
 function Dashboard({data,stats,runningMs,onNavigate,onStart,onPause,onStop,onAdd,onQuick,onStatus,onEdit}:{data:AppData;stats:ReturnType<typeof roadmapStats>;runningMs:number;onNavigate:(m:ModuleKey)=>void;onStart:(taskId:string,subject:string,note:string)=>void;onPause:()=>void;onStop:()=>void;onAdd:()=>void;onQuick:(title:string,subject?:string)=>void;onStatus:(t:RecordItem,s:TaskStatus)=>void;onEdit:(id:string)=>void}) {
